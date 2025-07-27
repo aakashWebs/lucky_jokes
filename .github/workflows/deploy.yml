@@ -18,14 +18,14 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Set up Docker image tag
+        run: echo "IMAGE_TAG=${GITHUB_SHA}" >> $GITHUB_ENV
+
       - name: Build Docker image
-        run: docker build -t luckey_jokes .
-    
-      - name: Tag Docker image
-        run: docker tag luckey_jokes yaakash281/aakashweb:new
+        run: docker build -t yaakash281/aakashweb:${{ env.IMAGE_TAG }} .
 
       - name: Push Docker image
-        run: docker push yaakash281/aakashweb:new
+        run: docker push yaakash281/aakashweb:${{ env.IMAGE_TAG }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -38,7 +38,11 @@ jobs:
         run: |
           aws eks update-kubeconfig --name my-cluster --region ap-south-1
 
+      - name: Inject image tag into deployment.yaml
+        run: |
+          sed -i "s|<IMAGE_TAG>|${{ env.IMAGE_TAG }}|g" k8s/deployment.yaml
+
       - name: Deploy to EKS
         run: |
-            kubectl apply -f k8s/deployment.yaml
-            kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
